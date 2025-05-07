@@ -11,6 +11,6 @@ startCommand:
   commandFunction: |
     (config) => ({
       command: "node",
-      args: ["dist/index.js"],
+      args: ["dist/main.js"],
       env: { PEXELS_API_KEY: config.pexelsApiKey }
     })

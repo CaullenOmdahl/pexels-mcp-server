@@ -90,31 +90,16 @@ server.tool(
       const ext = path.extname(new URL(imageUrl).pathname) || ".jpg";
       const fileName = `pexels_${photo.id}${ext}`;
 
-      // Download image data
-      const response = await fetch(imageUrl);
-      if (!response.ok) {
-        throw new Error(`Failed to download image: ${response.statusText}`);
-      }
-      const buffer = await response.buffer();
-      const base64Data = buffer.toString('base64');
-
-      // Determine mime type (basic guess based on extension)
-      let mimeType = 'image/jpeg';
-      if (ext === '.png') mimeType = 'image/png';
-      else if (ext === '.gif') mimeType = 'image/gif';
-      // Add more types if needed
-
+      // Return the direct download link instead of fetching data
       return {
         content: [
           {
-            type: "image", // Return as image type with base64 data
-            mimeType: mimeType,
-            data: base64Data,
-            // Add filename and attribution to metadata if needed, or as separate text
+            type: "text",
+            text: `Download Link (Original): ${imageUrl}`
           },
           {
             type: "text",
-            text: `Filename: ${fileName}\nAttribution: Photo by ${photo.photographer} (${photo.photographer_url}) on Pexels. License: https://www.pexels.com/license/`
+            text: `Suggested Filename: ${fileName}\nAttribution: Photo by ${photo.photographer} (${photo.photographer_url}) on Pexels. License: https://www.pexels.com/license/\n\nRecommendation: Use an available local tool (like curl or PowerShell's Invoke-WebRequest) to download the photo using the link provided.`
           }
         ]
       };

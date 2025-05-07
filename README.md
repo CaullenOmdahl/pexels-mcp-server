@@ -49,7 +49,7 @@ The server provides the following tools:
 ### Photo Tools
 
 - `searchPhotos`: Search for photos by query, with optional filters for orientation, size, color, page, and results per page. Returns metadata including photo IDs and URLs.
-- `downloadPhoto`: Fetches a specific photo by its ID and returns the image data (base64 encoded) along with the suggested filename and attribution information. The AI client is responsible for saving the data to a file locally.
+- `downloadPhoto`: Fetches a specific photo by its ID. Returns a direct download link for the original image, suggested filename, and attribution information. The AI client should use its available local tools (like `curl` or PowerShell's `Invoke-WebRequest`) to download the photo using the provided link.
 - `getCuratedPhotos`: Retrieve a curated set of photos from Pexels, optionally paginated.
 - `getPhoto`: Retrieve detailed information about a specific photo by its ID.
 

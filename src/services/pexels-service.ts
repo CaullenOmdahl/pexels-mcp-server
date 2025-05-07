@@ -163,8 +163,30 @@ export class PexelsService {
     });
 
     if (!response.ok) {
-      const error = await response.text();
-      throw new Error(`Pexels API error: ${response.status} ${error}`);
+      let errorBody = '';
+      try {
+        // Try to parse JSON error response from Pexels
+        const errorJson = await response.json() as { error?: string; code?: string };
+        errorBody = errorJson.error || errorJson.code || await response.text();
+      } catch (parseError) {
+        // Fallback to plain text if JSON parsing fails
+        errorBody = await response.text();
+      }
+
+      let errorMessage = `Pexels API Error (${response.status}): ${errorBody}`;
+      switch (response.status) {
+        case 401:
+          errorMessage = `Pexels API Error (${response.status}): Unauthorized. Check your API key.`;
+          break;
+        case 404:
+          errorMessage = `Pexels API Error (${response.status}): Resource not found.`;
+          break;
+        case 429:
+          errorMessage = `Pexels API Error (${response.status}): Rate limit exceeded. Please wait and try again.`;
+          break;
+        // Add other specific status codes if needed
+      }
+      throw new Error(errorMessage);
     }
 
     return response.json() as Promise<T>;

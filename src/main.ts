@@ -74,9 +74,9 @@ server.tool(
   "downloadPhoto",
   {
     id: z.number().positive().describe("The ID of the photo to download"),
-    directory: z.string().optional().describe("Target directory to save the image (defaults to current directory)")
+    // Removed directory parameter as saving happens on the AI side
   },
-  async ({ id, directory }, _extra) => {
+  async ({ id }, _extra) => {
     try {
       const photo = await pexelsService.getPhoto(id);
       if (!photo) {
@@ -89,37 +89,32 @@ server.tool(
       const imageUrl = photo.src.original; // Using original size for download
       const ext = path.extname(new URL(imageUrl).pathname) || ".jpg";
       const fileName = `pexels_${photo.id}${ext}`;
-      const dir = directory || process.cwd();
-      const filePath = path.join(dir, fileName);
 
-      // Ensure directory exists
-      await fs.mkdir(dir, { recursive: true });
-
-      // Download image
+      // Download image data
       const response = await fetch(imageUrl);
       if (!response.ok) {
         throw new Error(`Failed to download image: ${response.statusText}`);
       }
-      // Check if response.body is null
-      if (!response.body) {
-        throw new Error("Response body is null");
-      }
-      // Stream the response body to the file
-      // Use the already imported fs module
-      const fileStream = (await import("fs")).createWriteStream(filePath);
-      await new Promise((resolve, reject) => {
-          response.body?.pipe(fileStream);
-          response.body?.on("error", reject);
-          fileStream.on("finish", () => resolve(undefined)); // Explicitly resolve with undefined
-      });
+      const buffer = await response.buffer();
+      const base64Data = buffer.toString('base64');
 
+      // Determine mime type (basic guess based on extension)
+      let mimeType = 'image/jpeg';
+      if (ext === '.png') mimeType = 'image/png';
+      else if (ext === '.gif') mimeType = 'image/gif';
+      // Add more types if needed
 
       return {
         content: [
-          // Keep returning text with path and attribution
+          {
+            type: "image", // Return as image type with base64 data
+            mimeType: mimeType,
+            data: base64Data,
+            // Add filename and attribution to metadata if needed, or as separate text
+          },
           {
             type: "text",
-            text: `Downloaded photo to: ${filePath}\nAttribution: Photo by ${photo.photographer} (${photo.photographer_url}) on Pexels. License: https://www.pexels.com/license/`
+            text: `Filename: ${fileName}\nAttribution: Photo by ${photo.photographer} (${photo.photographer_url}) on Pexels. License: https://www.pexels.com/license/`
           }
         ]
       };
@@ -128,16 +123,14 @@ server.tool(
         content: [
           {
             type: "text",
-            text: `Error downloading photo: ${(error as Error).message}`
+            text: `Error preparing photo data: ${(error as Error).message}`
           }
         ]
       };
     }
   }
 );
-// This section seems to be duplicated code from the downloadPhoto tool handler
-// and was likely inserted incorrectly during a previous edit.
-// Removing this duplicated section.
+// Removed duplicated code section
 
 // Tool for getting curated photos
 server.tool(
@@ -146,7 +139,72 @@ server.tool(
     page: z.number().positive().optional().describe("Page number"),
     perPage: z.number().min(1).max(80).optional().describe("Results per page (max 80)") 
   }, 
-  async ({ page, perPage }) => {
+// Tool for downloading a video by ID
+server.tool(
+  "downloadVideo",
+  {
+    id: z.number().positive().describe("The ID of the video to download"),
+    quality: z.enum(["hd", "sd"]).optional().default("hd").describe("Preferred video quality (hd or sd)")
+  },
+  async ({ id, quality }, _extra) => {
+    try {
+      const video = await pexelsService.getVideo(id);
+      if (!video) {
+        return {
+          content: [
+            { type: "text", text: `Video with ID ${id} not found.` }
+          ]
+        };
+      }
+
+      // Find the video file URL for the desired quality
+      const videoFile = video.video_files.find(vf => vf.quality === quality) || video.video_files[0]; // Fallback to first available
+      if (!videoFile) {
+        return {
+          content: [
+            { type: "text", text: `No video file found for ID ${id}.` }
+          ]
+        };
+      }
+
+      const videoUrl = videoFile.link;
+      const ext = path.extname(new URL(videoUrl).pathname) || ".mp4"; // Guess extension
+      const fileName = `pexels_video_${video.id}_${videoFile.quality}${ext}`;
+
+      // Return the direct download link instead of fetching data
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Download Link (${videoFile.quality}): ${videoUrl}`
+          },
+          {
+            type: "text",
+            text: `Suggested Filename: ${fileName}\nAttribution: Video by ${video.user.name} (${video.user.url}) on Pexels. License: https://www.pexels.com/license/\n\nRecommendation: Use an available local tool (like curl or PowerShell's Invoke-WebRequest) to download the video using the link provided.`
+          }
+        ]
+      };
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error preparing video data: ${(error as Error).message}`
+          }
+        ]
+      };
+    }
+  }
+); // Missing closing parenthesis for downloadVideo tool
+
+// Tool for getting curated photos
+server.tool(
+  "getCuratedPhotos",
+  {
+    page: z.number().positive().optional().describe("Page number"),
+    perPage: z.number().min(1).max(80).optional().describe("Results per page (max 80)")
+  },
+  async ({ page, perPage }: { page?: number, perPage?: number }) => { // Added explicit types
     try {
       const results = await pexelsService.getCuratedPhotos({
         page,
@@ -168,7 +226,7 @@ server.tool(
     } catch (error) {
       return {
         content: [
-          { 
+          {
             type: "text", 
             text: `Error getting curated photos: ${(error as Error).message}`
           }
@@ -382,24 +440,29 @@ server.tool(
   }
 );
 
-// Tool for getting user's collections
+/*
+// NOTE: Accessing user-specific collections ('My Collections') typically requires
+// OAuth 2.0 authentication with Pexels, which is not implemented here.
+// This tool will likely only work if Pexels allows API key access to this endpoint,
+// or it might return an error or empty results without proper user authentication.
+// Tool for getting user's collections - Commented out due to auth requirements.
 server.tool(
-  "getMyCollections", 
-  { 
+  "getMyCollections",
+  {
     page: z.number().positive().optional().describe("Page number"),
-    perPage: z.number().min(1).max(80).optional().describe("Results per page (max 80)") 
-  }, 
+    perPage: z.number().min(1).max(80).optional().describe("Results per page (max 80)")
+  },
   async ({ page, perPage }) => {
     try {
       const collections = await pexelsService.getMyCollections({
         page,
         per_page: perPage
       });
-      
+
       return {
         content: [
-          { 
-            type: "text", 
+          {
+            type: "text",
             text: `Retrieved ${collections.collections.length} of your collections`
           },
           {
@@ -411,8 +474,8 @@ server.tool(
     } catch (error) {
       return {
         content: [
-          { 
-            type: "text", 
+          {
+            type: "text",
             text: `Error getting your collections: ${(error as Error).message}`
           }
         ]
@@ -420,6 +483,7 @@ server.tool(
     }
   }
 );
+*/
 
 // Tool for getting media from a collection
 server.tool(

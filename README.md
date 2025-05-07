@@ -49,7 +49,7 @@ The server provides the following tools:
 ### Photo Tools
 
 - `searchPhotos`: Search for photos by query, with optional filters for orientation, size, color, page, and results per page. Returns metadata including photo IDs and URLs.
-- `downloadPhoto`: Downloads a specific photo by its ID to an optional target directory (defaults to the current directory). Returns the file path and attribution information.
+- `downloadPhoto`: Fetches a specific photo by its ID and returns the image data (base64 encoded) along with the suggested filename and attribution information. The AI client is responsible for saving the data to a file locally.
 - `getCuratedPhotos`: Retrieve a curated set of photos from Pexels, optionally paginated.
 - `getPhoto`: Retrieve detailed information about a specific photo by its ID.
 
@@ -58,11 +58,12 @@ The server provides the following tools:
 - `searchVideos`: Search for videos by query, with optional filters for orientation, size, page, and results per page.
 - `getPopularVideos`: Retrieve a list of popular videos from Pexels, with optional filters for dimensions, duration, page, and results per page.
 - `getVideo`: Retrieve detailed information about a specific video by its ID.
+- `downloadVideo`: Fetches a specific video by its ID and preferred quality (hd/sd). Returns a direct download link, suggested filename, and attribution information. The AI client should use its available local tools (like `curl` or PowerShell's `Invoke-WebRequest`) to download the video using the provided link.
 
 ### Collection Tools
 
 - `getFeaturedCollections`: Retrieve a list of featured collections from Pexels, optionally paginated.
-- `getMyCollections`: Retrieve collections associated with the authenticated user, optionally paginated.
+- ~~`getMyCollections`~~: (Commented out in code) Requires OAuth 2.0 authentication, not supported by this server.
 - `getCollectionMedia`: Retrieve media items (photos or videos) from a specific collection by collection ID, with optional filters for type, sort order, page, and results per page.
 
 ### Resources
@@ -72,6 +73,10 @@ The server provides the following URI-addressable resources:
 - `pexels-photo://{id}`: Access a specific photo by ID
 - `pexels-video://{id}`: Access a specific video by ID
 - `pexels-collection://{id}`: Access a specific collection by ID
+
+## Error Handling
+
+The server attempts to provide informative error messages for common issues like invalid API keys, rate limits, or missing resources.
 
 ## Attribution Requirements
 

@@ -46,21 +46,21 @@ The server provides the following tools:
 
 ### Photo Tools
 
-- `searchPhotos`: Search for photos by query, with optional filters
-- `getCuratedPhotos`: Get curated photos from Pexels
-- `getPhoto`: Get a specific photo by ID
+- `searchPhotos`: Search for photos by query, with optional filters for orientation, size, color, page, and results per page.
+- `getCuratedPhotos`: Retrieve a curated set of photos from Pexels, optionally paginated.
+- `getPhoto`: Retrieve detailed information about a specific photo by its ID.
 
 ### Video Tools
 
-- `searchVideos`: Search for videos by query, with optional filters
-- `getPopularVideos`: Get popular videos from Pexels
-- `getVideo`: Get a specific video by ID
+- `searchVideos`: Search for videos by query, with optional filters for orientation, size, page, and results per page.
+- `getPopularVideos`: Retrieve a list of popular videos from Pexels, with optional filters for dimensions, duration, page, and results per page.
+- `getVideo`: Retrieve detailed information about a specific video by its ID.
 
 ### Collection Tools
 
-- `getFeaturedCollections`: Get featured collections
-- `getMyCollections`: Get your collections
-- `getCollectionMedia`: Get media from a collection
+- `getFeaturedCollections`: Retrieve a list of featured collections from Pexels, optionally paginated.
+- `getMyCollections`: Retrieve collections associated with the authenticated user, optionally paginated.
+- `getCollectionMedia`: Retrieve media items (photos or videos) from a specific collection by collection ID, with optional filters for type, sort order, page, and results per page.
 
 ### Resources
 

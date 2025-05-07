@@ -1,63 +1,82 @@
 # Pexels MCP Server
 
-This project implements an MCP (Model Context Protocol) server for interacting with the [Pexels API](https://www.pexels.com/api/). It exposes tools and resources for searching and retrieving photos, videos, and collections from Pexels.
+A Model Context Protocol (MCP) server that provides access to the Pexels API, allowing AI models to search for and retrieve photos, videos, and collections from Pexels.
 
 ## Features
 
-- Search and retrieve photos and videos
-- Access curated and popular media
-- Work with collections and collection media
-- Resource URIs for direct access to photos, videos, and collections
-- API key can be set via environment variable or at runtime
+- Search for photos and videos by query, orientation, size, and color
+- Access curated and popular content from Pexels
+- Browse Pexels collections
+- Get detailed information about specific photos and videos
+- Access content via tools or direct URI resources
 
 ## Requirements
 
-- Node.js 18+
-- A valid [Pexels API key](https://www.pexels.com/api/new/)
+- Node.js 18 or higher
+- A Pexels API key (get one at [https://www.pexels.com/api/](https://www.pexels.com/api/))
 
-## Setup
+## Local Development
 
-1. **Install dependencies:**
-   ```sh
-   npm install
+1. Clone the repository
+2. Install dependencies
+   ```bash
+   pnpm install
+   ```
+3. Build the project
+   ```bash
+   pnpm build
+   ```
+4. Run in development mode
+   ```bash
+   PEXELS_API_KEY=your_api_key pnpm dev
    ```
 
-2. **Set your Pexels API key:**
-   - Option 1: Set the `PEXELS_API_KEY` environment variable.
-   - Option 2: Use the `setApiKey` tool at runtime.
+## Deploying to Smithery
 
-## Usage
+This MCP server is ready to be deployed to Smithery. Follow these steps:
 
-Start the MCP server:
-```sh
-node src/main.ts
-```
+1. Add the server to Smithery or claim an existing server
+2. Go to the Deployments tab (only visible to authenticated owners)
+3. Deploy the server
+4. When configuring the deployment, provide your Pexels API key in the configuration settings
 
-### Tools
+## API Usage
 
-- `searchPhotos`: Search for photos by query, orientation, size, color, etc.
-- `getCuratedPhotos`: Get curated photo collections.
-- `getPhoto`: Retrieve a photo by ID.
-- `searchVideos`: Search for videos by query, orientation, size, etc.
-- `getPopularVideos`: Get popular videos.
-- `getVideo`: Retrieve a video by ID.
-- `getFeaturedCollections`: Get featured collections.
-- `getMyCollections`: Get your collections (requires user authentication, not implemented).
-- `getCollectionMedia`: Get media from a collection.
-- `setApiKey`: Set the Pexels API key at runtime.
+The server provides the following tools:
+
+### Photo Tools
+
+- `searchPhotos`: Search for photos by query, with optional filters
+- `getCuratedPhotos`: Get curated photos from Pexels
+- `getPhoto`: Get a specific photo by ID
+
+### Video Tools
+
+- `searchVideos`: Search for videos by query, with optional filters
+- `getPopularVideos`: Get popular videos from Pexels
+- `getVideo`: Get a specific video by ID
+
+### Collection Tools
+
+- `getFeaturedCollections`: Get featured collections
+- `getMyCollections`: Get your collections
+- `getCollectionMedia`: Get media from a collection
 
 ### Resources
 
-- `pexels-photo://{id}`: Access a photo by ID.
-- `pexels-video://{id}`: Access a video by ID.
-- `pexels-collection://{id}`: Access a collection by ID.
+The server provides the following URI-addressable resources:
 
-## Notes
+- `pexels-photo://{id}`: Access a specific photo by ID
+- `pexels-video://{id}`: Access a specific video by ID
+- `pexels-collection://{id}`: Access a specific collection by ID
 
-- Some endpoints (like `getMyCollections`) may require user authentication, which is not implemented in this server.
-- All requests require a valid Pexels API key.
-- Error messages are returned for invalid input or failed API requests.
+## Attribution Requirements
+
+When using the Pexels API, you must follow their attribution requirements:
+
+- Always show a prominent link to Pexels (e.g., "Photos provided by Pexels")
+- Always credit photographers (e.g., "Photo by John Doe on Pexels")
 
 ## License
 
-MIT
+ISC

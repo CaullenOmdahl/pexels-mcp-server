@@ -137,7 +137,7 @@ export class PexelsService {
    * @param params Query parameters to include in the request
    * @returns The API response
    */
-  private async request<T>(endpoint: string, params: Record<string, string | number> = {}): Promise<T> {
+  private async request<T>(endpoint: string, params: Record<string, string | number | undefined> = {}): Promise<T> {
     if (!this.apiKey) {
       throw new Error('Pexels API key is required. Please set an API key before making requests.');
     }
@@ -145,7 +145,9 @@ export class PexelsService {
     // Construct the query string
     const queryParams = new URLSearchParams();
     Object.entries(params).forEach(([key, value]) => {
-      queryParams.append(key, value.toString());
+      if (value !== undefined) {
+        queryParams.append(key, value.toString());
+      }
     });
 
     // Determine the base URL based on the endpoint

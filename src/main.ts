@@ -132,13 +132,6 @@ server.tool(
 );
 // Removed duplicated code section
 
-// Tool for getting curated photos
-server.tool(
-  "getCuratedPhotos", 
-  { 
-    page: z.number().positive().optional().describe("Page number"),
-    perPage: z.number().min(1).max(80).optional().describe("Results per page (max 80)") 
-  }, 
 // Tool for downloading a video by ID
 server.tool(
   "downloadVideo",
@@ -195,7 +188,7 @@ server.tool(
       };
     }
   }
-); // Missing closing parenthesis for downloadVideo tool
+);
 
 // Tool for getting curated photos
 server.tool(

@@ -13,7 +13,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@modelcontextprotocol/sdk": "0.9.0",
+    "@modelcontextprotocol/sdk": "1.11.0",
     "zod": "^3.22.4",
     "node-fetch": "^2.7.0"
   },

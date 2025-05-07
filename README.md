@@ -48,7 +48,8 @@ The server provides the following tools:
 
 ### Photo Tools
 
-- `searchPhotos`: Search for photos by query, with optional filters for orientation, size, color, page, and results per page.
+- `searchPhotos`: Search for photos by query, with optional filters for orientation, size, color, page, and results per page. Returns metadata including photo IDs and URLs.
+- `downloadPhoto`: Downloads a specific photo by its ID to an optional target directory (defaults to the current directory). Returns the file path and attribution information.
 - `getCuratedPhotos`: Retrieve a curated set of photos from Pexels, optionally paginated.
 - `getPhoto`: Retrieve detailed information about a specific photo by its ID.
 

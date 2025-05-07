@@ -30,32 +30,45 @@ server.tool(
     color: z.string().optional().describe("Desired photo color (e.g., 'red', 'blue', '#ff0000')"),
     page: z.number().positive().optional().describe("Page number"),
     perPage: z.number().min(1).max(80).optional().describe("Results per page (max 80)"),
-    download: z.boolean().optional().describe("If true, download the top image and return as a file with attribution")
+    locale: z.string().optional().describe("The locale of the search query (e.g., 'en-US', 'es-ES')."),
+    // download: z.boolean().optional().describe("If true, download the top image and return as a file with attribution") // Download handled by separate tool
   },
-  async ({ query, orientation, size, color, page, perPage, download }) => {
+  async ({ query, orientation, size, color, page, perPage, locale }) => {
     // Note: The 'download' parameter is kept in the schema for potential future use
     // but the download logic is now handled by the dedicated 'downloadPhoto' tool.
     try {
-      const results = await pexelsService.searchPhotos(query, {
+      const response = await pexelsService.searchPhotos(query, {
         orientation,
         size,
         color,
+        locale, // Pass locale
         page,
         per_page: perPage
       });
 
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Found ${results.total_results} photos matching "${query}"`
-          },
-          {
-            type: "text", // Return JSON as stringified text
-            text: JSON.stringify(results, null, 2)
-          }
-        ]
-      };
+      const results = response.data; // Access the actual data
+      const rateLimit = response.rateLimit; // Get rate limit info
+
+      const content: any[] = [
+        {
+          type: "text",
+          text: `Found ${results.total_results} photos matching "${query}"`
+        },
+        {
+          type: "text", // Return JSON as stringified text
+          text: JSON.stringify(results, null, 2)
+        }
+      ];
+
+      // Add rate limit info if available
+      if (rateLimit) {
+        content.push({
+          type: "text",
+          text: `\nRate Limit: ${rateLimit.remaining}/${rateLimit.limit} requests remaining this period. Resets at ${new Date(rateLimit.reset * 1000).toISOString()}.`
+        });
+      }
+
+      return { content };
     } catch (error) {
       return {
         content: [
@@ -74,35 +87,64 @@ server.tool(
   "downloadPhoto",
   {
     id: z.number().positive().describe("The ID of the photo to download"),
-    // Removed directory parameter as saving happens on the AI side
+    size: z.enum(['original', 'large2x', 'large', 'medium', 'small', 'portrait', 'landscape', 'tiny'])
+           .optional().default('original')
+           .describe("Desired photo size/version to download"),
   },
-  async ({ id }, _extra) => {
+  async ({ id, size }, _extra) => {
     try {
-      const photo = await pexelsService.getPhoto(id);
-      if (!photo) {
+      const response = await pexelsService.getPhoto(id);
+      const photo = response.data; // Access the actual data
+      const rateLimit = response.rateLimit; // Get rate limit info
+
+      if (!photo) { // Check if data itself is null/undefined (though service should throw 404)
         return {
           content: [
             { type: "text", text: `Photo with ID ${id} not found.` }
           ]
         };
       }
-      const imageUrl = photo.src.original; // Using original size for download
+      // Select the URL based on the requested size
+      const availableSizes = photo.src;
+      let imageUrl = availableSizes[size];
+      let actualSize = size;
+
+      // Fallback logic if requested size isn't directly available (though Pexels usually provides all)
+      if (!imageUrl) {
+        console.warn(`Requested size '${size}' not found for photo ${id}, falling back to 'original'.`);
+        imageUrl = availableSizes.original;
+        actualSize = 'original';
+      }
+       if (!imageUrl) { // Final fallback if even original is missing (unlikely)
+         return { content: [{ type: "text", text: `Could not find any download URL for photo ID ${id}.` }] };
+       }
+
+
       const ext = path.extname(new URL(imageUrl).pathname) || ".jpg";
-      const fileName = `pexels_${photo.id}${ext}`;
+      const fileName = `pexels_${photo.id}_${actualSize}${ext}`; // Include size in filename
 
       // Return the direct download link instead of fetching data
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Download Link (Original): ${imageUrl}`
-          },
-          {
-            type: "text",
-            text: `Suggested Filename: ${fileName}\nAttribution: Photo by ${photo.photographer} (${photo.photographer_url}) on Pexels. License: https://www.pexels.com/license/\n\nRecommendation: Use an available local tool (like curl or PowerShell's Invoke-WebRequest) to download the photo using the link provided.`
-          }
-        ]
-      };
+      const content: any[] = [
+        {
+          type: "text",
+          text: `Download Link (${actualSize}): ${imageUrl}`
+        },
+        {
+          type: "text",
+          text: `Suggested Filename: ${fileName}\nAttribution: Photo by ${photo.photographer} (${photo.photographer_url}) on Pexels. License: https://www.pexels.com/license/\n\nRecommendation: Use an available local tool (like curl or PowerShell's Invoke-WebRequest) to download the photo using the link provided.`
+        }
+      ];
+
+      // Add rate limit info if available
+      if (rateLimit) {
+        const resetDate = rateLimit.reset ? new Date(rateLimit.reset * 1000).toISOString() : 'N/A';
+        content.push({
+          type: "text",
+          text: `\nRate Limit: ${rateLimit.remaining ?? 'N/A'}/${rateLimit.limit ?? 'N/A'} requests remaining this period. Resets at ${resetDate}.`
+        });
+      }
+
+      return { content };
     } catch (error) {
       return {
         content: [
@@ -126,8 +168,11 @@ server.tool(
   },
   async ({ id, quality }, _extra) => {
     try {
-      const video = await pexelsService.getVideo(id);
-      if (!video) {
+      const response = await pexelsService.getVideo(id);
+      const videoData = response.data; // Access the actual data
+      const rateLimit = response.rateLimit; // Get rate limit info
+
+      if (!videoData) { // Check if data itself is null/undefined
         return {
           content: [
             { type: "text", text: `Video with ID ${id} not found.` }
@@ -136,7 +181,8 @@ server.tool(
       }
 
       // Find the video file URL for the desired quality
-      const videoFile = video.video_files.find(vf => vf.quality === quality) || video.video_files[0]; // Fallback to first available
+      // Add type annotation here
+      const videoFile = videoData.video_files.find((vf: { quality: string; }) => vf.quality === quality) || videoData.video_files[0]; // Fallback to first available
       if (!videoFile) {
         return {
           content: [
@@ -147,21 +193,30 @@ server.tool(
 
       const videoUrl = videoFile.link;
       const ext = path.extname(new URL(videoUrl).pathname) || ".mp4"; // Guess extension
-      const fileName = `pexels_video_${video.id}_${videoFile.quality}${ext}`;
+      const fileName = `pexels_video_${videoData.id}_${videoFile.quality}${ext}`;
 
       // Return the direct download link instead of fetching data
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Download Link (${videoFile.quality}): ${videoUrl}`
-          },
-          {
-            type: "text",
-            text: `Suggested Filename: ${fileName}\nAttribution: Video by ${video.user.name} (${video.user.url}) on Pexels. License: https://www.pexels.com/license/\n\nRecommendation: Use an available local tool (like curl or PowerShell's Invoke-WebRequest) to download the video using the link provided.`
-          }
-        ]
-      };
+      const content: any[] = [
+        {
+          type: "text",
+          text: `Download Link (${videoFile.quality}): ${videoUrl}`
+        },
+        {
+          type: "text",
+          text: `Suggested Filename: ${fileName}\nAttribution: Video by ${videoData.user.name} (${videoData.user.url}) on Pexels. License: https://www.pexels.com/license/\n\nRecommendation: Use an available local tool (like curl or PowerShell's Invoke-WebRequest) to download the video using the link provided.`
+        }
+      ];
+
+       // Add rate limit info if available
+       if (rateLimit) {
+        const resetDate = rateLimit.reset ? new Date(rateLimit.reset * 1000).toISOString() : 'N/A';
+        content.push({
+          type: "text",
+          text: `\nRate Limit: ${rateLimit.remaining ?? 'N/A'}/${rateLimit.limit ?? 'N/A'} requests remaining this period. Resets at ${resetDate}.`
+        });
+      }
+
+      return { content };
     } catch (error) {
       return {
         content: [
@@ -184,23 +239,35 @@ server.tool(
   },
   async ({ page, perPage }: { page?: number, perPage?: number }) => { // Added explicit types
     try {
-      const results = await pexelsService.getCuratedPhotos({
+      const response = await pexelsService.getCuratedPhotos({
         page,
         per_page: perPage
       });
+
+      const results = response.data; // Access the actual data
+      const rateLimit = response.rateLimit; // Get rate limit info
       
-      return {
-        content: [
-          { 
-            type: "text", 
-            text: `Retrieved ${results.photos.length} curated photos`
-          },
-          {
-            type: "text",
-            text: JSON.stringify(results, null, 2)
-          }
-        ]
-      };
+      const content: any[] = [
+        {
+          type: "text",
+          text: `Retrieved ${results.photos.length} curated photos`
+        },
+        {
+          type: "text",
+          text: JSON.stringify(results, null, 2)
+        }
+      ];
+
+      // Add rate limit info if available
+      if (rateLimit) {
+        const resetDate = rateLimit.reset ? new Date(rateLimit.reset * 1000).toISOString() : 'N/A';
+        content.push({
+          type: "text",
+          text: `\nRate Limit: ${rateLimit.remaining ?? 'N/A'}/${rateLimit.limit ?? 'N/A'} requests remaining this period. Resets at ${resetDate}.`
+        });
+      }
+
+      return { content };
     } catch (error) {
       return {
         content: [
@@ -222,20 +289,35 @@ server.tool(
   }, 
   async ({ id }) => {
     try {
-      const photo = await pexelsService.getPhoto(id);
+      const response = await pexelsService.getPhoto(id);
+      const photo = response.data; // Access the actual data
+      const rateLimit = response.rateLimit; // Get rate limit info
+
+      if (!photo) {
+         return { content: [{ type: "text", text: `Photo with ID ${id} not found.` }] };
+      }
       
-      return {
-        content: [
-          { 
-            type: "text", 
-            text: `Retrieved photo: ${photo.alt || photo.url}`
-          },
-          {
-            type: "text",
-            text: JSON.stringify(photo, null, 2)
-          }
-        ]
-      };
+      const content: any[] = [
+        {
+          type: "text",
+          text: `Retrieved photo: ${photo.alt || photo.url}`
+        },
+        {
+          type: "text",
+          text: JSON.stringify(photo, null, 2)
+        }
+      ];
+
+      // Add rate limit info if available
+      if (rateLimit) {
+        const resetDate = rateLimit.reset ? new Date(rateLimit.reset * 1000).toISOString() : 'N/A';
+        content.push({
+          type: "text",
+          text: `\nRate Limit: ${rateLimit.remaining ?? 'N/A'}/${rateLimit.limit ?? 'N/A'} requests remaining this period. Resets at ${resetDate}.`
+        });
+      }
+
+      return { content };
     } catch (error) {
       return {
         content: [
@@ -259,29 +341,43 @@ server.tool(
     orientation: z.enum(["landscape", "portrait", "square"]).optional().describe("Desired video orientation"),
     size: z.enum(["large", "medium", "small"]).optional().describe("Minimum video size"),
     page: z.number().positive().optional().describe("Page number"),
-    perPage: z.number().min(1).max(80).optional().describe("Results per page (max 80)") 
-  }, 
-  async ({ query, orientation, size, page, perPage }) => {
+    perPage: z.number().min(1).max(80).optional().describe("Results per page (max 80)"),
+    locale: z.string().optional().describe("The locale of the search query (e.g., 'en-US', 'es-ES').")
+  },
+  async ({ query, orientation, size, page, perPage, locale }) => {
     try {
-      const results = await pexelsService.searchVideos(query, {
+      const response = await pexelsService.searchVideos(query, {
         orientation,
         size,
+        locale, // Pass locale
         page,
         per_page: perPage
       });
+
+      const results = response.data; // Access the actual data
+      const rateLimit = response.rateLimit; // Get rate limit info
       
-      return {
-        content: [
-          { 
-            type: "text", 
-            text: `Found ${results.total_results} videos matching "${query}"`
-          },
-          {
-            type: "text",
-            text: JSON.stringify(results, null, 2)
-          }
-        ]
-      };
+      const content: any[] = [
+        {
+          type: "text",
+          text: `Found ${results.total_results} videos matching "${query}"`
+        },
+        {
+          type: "text",
+          text: JSON.stringify(results, null, 2)
+        }
+      ];
+
+      // Add rate limit info if available
+      if (rateLimit) {
+        const resetDate = rateLimit.reset ? new Date(rateLimit.reset * 1000).toISOString() : 'N/A';
+        content.push({
+          type: "text",
+          text: `\nRate Limit: ${rateLimit.remaining ?? 'N/A'}/${rateLimit.limit ?? 'N/A'} requests remaining this period. Resets at ${resetDate}.`
+        });
+      }
+
+      return { content };
     } catch (error) {
       return {
         content: [
@@ -308,7 +404,7 @@ server.tool(
   }, 
   async ({ minWidth, minHeight, minDuration, maxDuration, page, perPage }) => {
     try {
-      const results = await pexelsService.getPopularVideos({
+      const response = await pexelsService.getPopularVideos({
         min_width: minWidth,
         min_height: minHeight,
         min_duration: minDuration,
@@ -316,19 +412,31 @@ server.tool(
         page,
         per_page: perPage
       });
+
+      const results = response.data; // Access the actual data
+      const rateLimit = response.rateLimit; // Get rate limit info
       
-      return {
-        content: [
-          { 
-            type: "text", 
-            text: `Retrieved ${results.videos.length} popular videos`
-          },
-          {
-            type: "text",
-            text: JSON.stringify(results, null, 2)
-          }
-        ]
-      };
+      const content: any[] = [
+        {
+          type: "text",
+          text: `Retrieved ${results.videos.length} popular videos`
+        },
+        {
+          type: "text",
+          text: JSON.stringify(results, null, 2)
+        }
+      ];
+
+      // Add rate limit info if available
+      if (rateLimit) {
+        const resetDate = rateLimit.reset ? new Date(rateLimit.reset * 1000).toISOString() : 'N/A';
+        content.push({
+          type: "text",
+          text: `\nRate Limit: ${rateLimit.remaining ?? 'N/A'}/${rateLimit.limit ?? 'N/A'} requests remaining this period. Resets at ${resetDate}.`
+        });
+      }
+
+      return { content };
     } catch (error) {
       return {
         content: [
@@ -350,20 +458,35 @@ server.tool(
   }, 
   async ({ id }) => {
     try {
-      const video = await pexelsService.getVideo(id);
+      const response = await pexelsService.getVideo(id);
+      const video = response.data; // Access the actual data
+      const rateLimit = response.rateLimit; // Get rate limit info
+
+      if (!video) {
+        return { content: [{ type: "text", text: `Video with ID ${id} not found.` }] };
+      }
       
-      return {
-        content: [
-          { 
-            type: "text", 
-            text: `Retrieved video with ID: ${id}`
-          },
-          {
-            type: "text",
-            text: JSON.stringify(video, null, 2)
-          }
-        ]
-      };
+      const content: any[] = [
+        {
+          type: "text",
+          text: `Retrieved video with ID: ${id}`
+        },
+        {
+          type: "text",
+          text: JSON.stringify(video, null, 2)
+        }
+      ];
+
+      // Add rate limit info if available
+      if (rateLimit) {
+        const resetDate = rateLimit.reset ? new Date(rateLimit.reset * 1000).toISOString() : 'N/A';
+        content.push({
+          type: "text",
+          text: `\nRate Limit: ${rateLimit.remaining ?? 'N/A'}/${rateLimit.limit ?? 'N/A'} requests remaining this period. Resets at ${resetDate}.`
+        });
+      }
+
+      return { content };
     } catch (error) {
       return {
         content: [
@@ -388,23 +511,35 @@ server.tool(
   }, 
   async ({ page, perPage }) => {
     try {
-      const collections = await pexelsService.getFeaturedCollections({
+      const response = await pexelsService.getFeaturedCollections({
         page,
         per_page: perPage
       });
+
+      const collections = response.data; // Access the actual data
+      const rateLimit = response.rateLimit; // Get rate limit info
       
-      return {
-        content: [
-          { 
-            type: "text", 
-            text: `Retrieved ${collections.collections.length} featured collections`
-          },
-          {
-            type: "text",
-            text: JSON.stringify(collections, null, 2)
-          }
-        ]
-      };
+      const content: any[] = [
+        {
+          type: "text",
+          text: `Retrieved ${collections.collections.length} featured collections`
+        },
+        {
+          type: "text",
+          text: JSON.stringify(collections, null, 2)
+        }
+      ];
+
+      // Add rate limit info if available
+      if (rateLimit) {
+        const resetDate = rateLimit.reset ? new Date(rateLimit.reset * 1000).toISOString() : 'N/A';
+        content.push({
+          type: "text",
+          text: `\nRate Limit: ${rateLimit.remaining ?? 'N/A'}/${rateLimit.limit ?? 'N/A'} requests remaining this period. Resets at ${resetDate}.`
+        });
+      }
+
+      return { content };
     } catch (error) {
       return {
         content: [
@@ -475,25 +610,37 @@ server.tool(
   }, 
   async ({ id, type, sort, page, perPage }) => {
     try {
-      const media = await pexelsService.getCollectionMedia(id, {
+      const response = await pexelsService.getCollectionMedia(id, {
         type,
         sort,
         page,
         per_page: perPage
       });
+
+      const media = response.data; // Access the actual data
+      const rateLimit = response.rateLimit; // Get rate limit info
       
-      return {
-        content: [
-          { 
-            type: "text", 
-            text: `Retrieved ${media.media.length} media items from collection ${id}`
-          },
-          {
-            type: "text",
-            text: JSON.stringify(media, null, 2)
-          }
-        ]
-      };
+      const content: any[] = [
+        {
+          type: "text",
+          text: `Retrieved ${media.media.length} media items from collection ${id}`
+        },
+        {
+          type: "text",
+          text: JSON.stringify(media, null, 2)
+        }
+      ];
+
+      // Add rate limit info if available
+      if (rateLimit) {
+        const resetDate = rateLimit.reset ? new Date(rateLimit.reset * 1000).toISOString() : 'N/A';
+        content.push({
+          type: "text",
+          text: `\nRate Limit: ${rateLimit.remaining ?? 'N/A'}/${rateLimit.limit ?? 'N/A'} requests remaining this period. Resets at ${resetDate}.`
+        });
+      }
+
+      return { content };
     } catch (error) {
       return {
         content: [

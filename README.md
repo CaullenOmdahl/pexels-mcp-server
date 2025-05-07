@@ -48,14 +48,14 @@ The server provides the following tools:
 
 ### Photo Tools
 
-- `searchPhotos`: Search for photos by query (use descriptive keywords for relevant results, e.g., 'Thai hotel reception', 'red sports car driving', not just 'hotel' or 'car'; combine with parameters like `orientation`, `size`, and `color` for refined results), with optional filters for orientation, size, color, page, and results per page. Returns metadata including photo IDs and URLs.
-- `downloadPhoto`: Fetches a specific photo by its ID. Returns a direct download link for the original image, suggested filename, and attribution information. The AI client should use its available local tools (like `curl` or PowerShell's `Invoke-WebRequest`) to download the photo using the provided link.
+- `searchPhotos`: Search for photos by query (use descriptive keywords for relevant results, e.g., 'Thai hotel reception', 'red sports car driving', not just 'hotel' or 'car'; combine with parameters like `orientation`, `size`, `color`, and `locale` for refined results), with optional filters for orientation, size, color, locale (e.g., 'en-US', 'es-ES'), page, and results per page. Returns metadata including photo IDs and URLs, plus current API rate limit status.
+- `downloadPhoto`: Fetches a specific photo by its ID and desired size (optional, defaults to 'original'). Available sizes: 'original', 'large2x', 'large', 'medium', 'small', 'portrait', 'landscape', 'tiny'. Returns a direct download link for the requested image size, suggested filename (including size), and attribution information. The AI client should use its available local tools (like `curl` or PowerShell's `Invoke-WebRequest`) to download the photo using the provided link.
 - `getCuratedPhotos`: Retrieve a curated set of photos from Pexels, optionally paginated.
 - `getPhoto`: Retrieve detailed information about a specific photo by its ID.
 
 ### Video Tools
 
-- `searchVideos`: Search for videos by query (use descriptive keywords for relevant results, e.g., 'drone footage beach sunset', 'time lapse city traffic', not just 'beach' or 'city'; combine with parameters like `orientation` and `size` for refined results), with optional filters for orientation, size, page, and results per page.
+- `searchVideos`: Search for videos by query (use descriptive keywords for relevant results, e.g., 'drone footage beach sunset', 'time lapse city traffic', not just 'beach' or 'city'; combine with parameters like `orientation` and `size` for refined results), with optional filters for orientation, size, locale (e.g., 'en-US', 'es-ES'), page, and results per page. Returns metadata including video IDs and URLs, plus current API rate limit status.
 - `getPopularVideos`: Retrieve a list of popular videos from Pexels, with optional filters for dimensions, duration, page, and results per page.
 - `getVideo`: Retrieve detailed information about a specific video by its ID.
 - `downloadVideo`: Fetches a specific video by its ID and preferred quality (hd/sd). Returns a direct download link, suggested filename, and attribution information. The AI client should use its available local tools (like `curl` or PowerShell's `Invoke-WebRequest`) to download the video using the provided link.
@@ -76,7 +76,7 @@ The server provides the following URI-addressable resources:
 
 ## Error Handling
 
-The server attempts to provide informative error messages for common issues like invalid API keys, rate limits, or missing resources.
+The server attempts to provide informative error messages for common issues like invalid API keys, rate limits, or missing resources. Successful responses also include the current Pexels API rate limit status (remaining requests, reset time) in the output.
 
 ## Attribution Requirements
 

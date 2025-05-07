@@ -110,6 +110,18 @@ interface CollectionMedia {
 }
 
 /**
+ * Represents the result of a Pexels API request, including rate limit info.
+ */
+interface PexelsApiResponse<T> {
+  data: T;
+  rateLimit?: {
+    limit: number | null;
+    remaining: number | null;
+    reset: number | null; // Unix timestamp
+  };
+}
+
+/**
  * Service for interacting with the Pexels API
  */
 export class PexelsService {
@@ -137,7 +149,7 @@ export class PexelsService {
    * @param params Query parameters to include in the request
    * @returns The API response
    */
-  private async request<T>(endpoint: string, params: Record<string, string | number | undefined> = {}): Promise<T> {
+  private async request<T>(endpoint: string, params: Record<string, string | number | undefined> = {}): Promise<PexelsApiResponse<T>> {
     if (!this.apiKey) {
       throw new Error('Pexels API key is required. Please set an API key before making requests.');
     }
@@ -189,7 +201,24 @@ export class PexelsService {
       throw new Error(errorMessage);
     }
 
-    return response.json() as Promise<T>;
+    const data = await response.json() as T;
+
+    // Extract rate limit headers
+    const limitHeader = response.headers.get('X-Ratelimit-Limit');
+    const remainingHeader = response.headers.get('X-Ratelimit-Remaining');
+    const resetHeader = response.headers.get('X-Ratelimit-Reset');
+
+    const rateLimit = {
+      limit: limitHeader ? parseInt(limitHeader, 10) : null,
+      remaining: remainingHeader ? parseInt(remainingHeader, 10) : null,
+      reset: resetHeader ? parseInt(resetHeader, 10) : null,
+    };
+
+    // Filter out null values if headers weren't present
+    const validRateLimit = Object.values(rateLimit).some(v => v !== null) ? rateLimit : undefined;
+
+
+    return { data, rateLimit: validRateLimit };
   }
 
   /**
@@ -208,7 +237,7 @@ export class PexelsService {
       page?: number;
       per_page?: number;
     } = {}
-  ): Promise<PhotoSearchResponse> {
+  ): Promise<PexelsApiResponse<PhotoSearchResponse>> {
     return this.request<PhotoSearchResponse>('/search', {
       query,
       ...options,
@@ -225,7 +254,7 @@ export class PexelsService {
       page?: number;
       per_page?: number;
     } = {}
-  ): Promise<PhotoSearchResponse> {
+  ): Promise<PexelsApiResponse<PhotoSearchResponse>> {
     return this.request<PhotoSearchResponse>('/curated', options);
   }
 
@@ -234,7 +263,7 @@ export class PexelsService {
    * @param id The photo ID
    * @returns The photo data
    */
-  async getPhoto(id: number): Promise<Photo> {
+  async getPhoto(id: number): Promise<PexelsApiResponse<Photo>> {
     return this.request<Photo>(`/photos/${id}`);
   }
 
@@ -253,8 +282,9 @@ export class PexelsService {
       page?: number;
       per_page?: number;
     } = {}
-  ): Promise<VideoSearchResponse> {
-    return this.request<VideoSearchResponse>('/search', {
+  ): Promise<PexelsApiResponse<VideoSearchResponse>> {
+    // Note: Video search uses /videos/search endpoint
+    return this.request<VideoSearchResponse>('/videos/search', {
       query,
       ...options,
     });
@@ -274,8 +304,9 @@ export class PexelsService {
       page?: number;
       per_page?: number;
     } = {}
-  ): Promise<VideoSearchResponse> {
-    return this.request<VideoSearchResponse>('/popular', options);
+  ): Promise<PexelsApiResponse<VideoSearchResponse>> {
+     // Note: Popular videos uses /videos/popular endpoint
+    return this.request<VideoSearchResponse>('/videos/popular', options);
   }
 
   /**
@@ -283,8 +314,8 @@ export class PexelsService {
    * @param id The video ID
    * @returns The video data
    */
-  async getVideo(id: number): Promise<Video> {
-    return this.request<Video>(`/videos/${id}`);
+  async getVideo(id: number): Promise<PexelsApiResponse<Video>> {
+    return this.request<Video>(`/videos/videos/${id}`);
   }
 
   /**
@@ -297,7 +328,7 @@ export class PexelsService {
       page?: number;
       per_page?: number;
     } = {}
-  ): Promise<CollectionsResponse> {
+  ): Promise<PexelsApiResponse<CollectionsResponse>> {
     return this.request<CollectionsResponse>('/collections/featured', options);
   }
 
@@ -311,7 +342,8 @@ export class PexelsService {
       page?: number;
       per_page?: number;
     } = {}
-  ): Promise<CollectionsResponse> {
+  ): Promise<PexelsApiResponse<CollectionsResponse>> {
+    // Note: This likely requires OAuth, but keeping signature for consistency
     return this.request<CollectionsResponse>('/collections', options);
   }
 
@@ -329,7 +361,7 @@ export class PexelsService {
       page?: number;
       per_page?: number;
     } = {}
-  ): Promise<CollectionMedia> {
+  ): Promise<PexelsApiResponse<CollectionMedia>> {
     return this.request<CollectionMedia>(`/collections/${id}`, options);
   }
 }

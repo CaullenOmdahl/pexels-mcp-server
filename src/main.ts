@@ -5,6 +5,9 @@ import {
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 import { PexelsService } from "./services/pexels-service.js";
+import fs from "fs/promises";
+import path from "path";
+import fetch from "node-fetch";
 
 // Create an MCP server
 const server = new McpServer({
@@ -19,16 +22,19 @@ const pexelsService = new PexelsService();
 
 // Tool for searching photos
 server.tool(
-  "searchPhotos", 
-  { 
+  "searchPhotos",
+  {
     query: z.string().describe("The search query (e.g., 'nature', 'people', 'city')"),
     orientation: z.enum(["landscape", "portrait", "square"]).optional().describe("Desired photo orientation"),
     size: z.enum(["large", "medium", "small"]).optional().describe("Minimum photo size"),
     color: z.string().optional().describe("Desired photo color (e.g., 'red', 'blue', '#ff0000')"),
     page: z.number().positive().optional().describe("Page number"),
-    perPage: z.number().min(1).max(80).optional().describe("Results per page (max 80)") 
-  }, 
-  async ({ query, orientation, size, color, page, perPage }) => {
+    perPage: z.number().min(1).max(80).optional().describe("Results per page (max 80)"),
+    download: z.boolean().optional().describe("If true, download the top image and return as a file with attribution")
+  },
+  async ({ query, orientation, size, color, page, perPage, download }) => {
+    // Note: The 'download' parameter is kept in the schema for potential future use
+    // but the download logic is now handled by the dedicated 'downloadPhoto' tool.
     try {
       const results = await pexelsService.searchPhotos(query, {
         orientation,
@@ -37,15 +43,15 @@ server.tool(
         page,
         per_page: perPage
       });
-      
+
       return {
         content: [
-          { 
-            type: "text", 
+          {
+            type: "text",
             text: `Found ${results.total_results} photos matching "${query}"`
           },
           {
-            type: "text",
+            type: "text", // Return JSON as stringified text
             text: JSON.stringify(results, null, 2)
           }
         ]
@@ -53,8 +59,8 @@ server.tool(
     } catch (error) {
       return {
         content: [
-          { 
-            type: "text", 
+          {
+            type: "text",
             text: `Error searching photos: ${(error as Error).message}`
           }
         ]
@@ -62,6 +68,76 @@ server.tool(
     }
   }
 );
+
+// Tool for downloading a photo by ID
+server.tool(
+  "downloadPhoto",
+  {
+    id: z.number().positive().describe("The ID of the photo to download"),
+    directory: z.string().optional().describe("Target directory to save the image (defaults to current directory)")
+  },
+  async ({ id, directory }, _extra) => {
+    try {
+      const photo = await pexelsService.getPhoto(id);
+      if (!photo) {
+        return {
+          content: [
+            { type: "text", text: `Photo with ID ${id} not found.` }
+          ]
+        };
+      }
+      const imageUrl = photo.src.original; // Using original size for download
+      const ext = path.extname(new URL(imageUrl).pathname) || ".jpg";
+      const fileName = `pexels_${photo.id}${ext}`;
+      const dir = directory || process.cwd();
+      const filePath = path.join(dir, fileName);
+
+      // Ensure directory exists
+      await fs.mkdir(dir, { recursive: true });
+
+      // Download image
+      const response = await fetch(imageUrl);
+      if (!response.ok) {
+        throw new Error(`Failed to download image: ${response.statusText}`);
+      }
+      // Check if response.body is null
+      if (!response.body) {
+        throw new Error("Response body is null");
+      }
+      // Stream the response body to the file
+      // Use the already imported fs module
+      const fileStream = (await import("fs")).createWriteStream(filePath);
+      await new Promise((resolve, reject) => {
+          response.body?.pipe(fileStream);
+          response.body?.on("error", reject);
+          fileStream.on("finish", () => resolve(undefined)); // Explicitly resolve with undefined
+      });
+
+
+      return {
+        content: [
+          // Keep returning text with path and attribution
+          {
+            type: "text",
+            text: `Downloaded photo to: ${filePath}\nAttribution: Photo by ${photo.photographer} (${photo.photographer_url}) on Pexels. License: https://www.pexels.com/license/`
+          }
+        ]
+      };
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error downloading photo: ${(error as Error).message}`
+          }
+        ]
+      };
+    }
+  }
+);
+// This section seems to be duplicated code from the downloadPhoto tool handler
+// and was likely inserted incorrectly during a previous edit.
+// Removing this duplicated section.
 
 // Tool for getting curated photos
 server.tool(

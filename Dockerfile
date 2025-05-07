@@ -1,35 +1,29 @@
 FROM node:18-alpine AS builder
 
-# Install pnpm
-RUN npm install -g pnpm@8
-
 WORKDIR /usr/src/app
 
 # Copy package files for better layer caching
-COPY package.json pnpm-lock.yaml* ./
+COPY package.json ./
 
-# Install dependencies with build tools
-RUN pnpm install --frozen-lockfile
+# Install npm instead of pnpm since that's more widely supported
+RUN npm install
 
 # Copy source files
 COPY . .
 
 # Build the application
-RUN pnpm build
+RUN npm run build
 
 # Production stage
 FROM node:18-alpine AS release
 
 WORKDIR /usr/src/app
 
-# Install pnpm
-RUN npm install -g pnpm@8
-
 # Copy only package files first (for better layer caching)
-COPY package.json pnpm-lock.yaml* ./
+COPY package.json ./
 
 # Only install production dependencies
-RUN pnpm install --frozen-lockfile --prod
+RUN npm install --omit=dev
 
 # Copy the built application from builder stage
 COPY --from=builder /usr/src/app/dist ./dist

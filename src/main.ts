@@ -45,8 +45,8 @@ server.tool(
             text: `Found ${results.total_results} photos matching "${query}"`
           },
           {
-            type: "json",
-            json: results
+            type: "text",
+            text: JSON.stringify(results, null, 2)
           }
         ]
       };
@@ -84,8 +84,8 @@ server.tool(
             text: `Retrieved ${results.photos.length} curated photos`
           },
           {
-            type: "json",
-            json: results
+            type: "text",
+            text: JSON.stringify(results, null, 2)
           }
         ]
       };
@@ -119,8 +119,8 @@ server.tool(
             text: `Retrieved photo: ${photo.alt || photo.url}`
           },
           {
-            type: "json",
-            json: photo
+            type: "text",
+            text: JSON.stringify(photo, null, 2)
           }
         ]
       };
@@ -165,8 +165,8 @@ server.tool(
             text: `Found ${results.total_results} videos matching "${query}"`
           },
           {
-            type: "json",
-            json: results
+            type: "text",
+            text: JSON.stringify(results, null, 2)
           }
         ]
       };
@@ -212,8 +212,8 @@ server.tool(
             text: `Retrieved ${results.videos.length} popular videos`
           },
           {
-            type: "json",
-            json: results
+            type: "text",
+            text: JSON.stringify(results, null, 2)
           }
         ]
       };
@@ -247,8 +247,8 @@ server.tool(
             text: `Retrieved video with ID: ${id}`
           },
           {
-            type: "json",
-            json: video
+            type: "text",
+            text: JSON.stringify(video, null, 2)
           }
         ]
       };
@@ -288,8 +288,8 @@ server.tool(
             text: `Retrieved ${collections.collections.length} featured collections`
           },
           {
-            type: "json",
-            json: collections
+            type: "text",
+            text: JSON.stringify(collections, null, 2)
           }
         ]
       };
@@ -327,8 +327,8 @@ server.tool(
             text: `Retrieved ${collections.collections.length} of your collections`
           },
           {
-            type: "json",
-            json: collections
+            type: "text",
+            text: JSON.stringify(collections, null, 2)
           }
         ]
       };
@@ -371,8 +371,8 @@ server.tool(
             text: `Retrieved ${media.media.length} media items from collection ${id}`
           },
           {
-            type: "json",
-            json: media
+            type: "text",
+            text: JSON.stringify(media, null, 2)
           }
         ]
       };
@@ -397,13 +397,13 @@ server.resource(
   new ResourceTemplate("pexels-photo://{id}", { list: undefined }),
   async (uri, { id }) => {
     try {
-      const photoId = parseInt(id, 10);
+      const photoId = parseInt((id ?? "").toString(), 10);
       if (isNaN(photoId)) {
         return {
           contents: [
             {
               uri: uri.href,
-              text: `Invalid photo ID: ${id}`,
+              text: `Invalid photo ID: ${id ?? ""}`,
             },
           ],
         };
@@ -440,13 +440,13 @@ server.resource(
   new ResourceTemplate("pexels-video://{id}", { list: undefined }),
   async (uri, { id }) => {
     try {
-      const videoId = parseInt(id, 10);
+      const videoId = parseInt((id ?? "").toString(), 10);
       if (isNaN(videoId)) {
         return {
           contents: [
             {
               uri: uri.href,
-              text: `Invalid video ID: ${id}`,
+              text: `Invalid video ID: ${id ?? ""}`,
             },
           ],
         };
@@ -483,7 +483,7 @@ server.resource(
   new ResourceTemplate("pexels-collection://{id}", { list: undefined }),
   async (uri, { id }) => {
     try {
-      const media = await pexelsService.getCollectionMedia(id);
+      const media = await pexelsService.getCollectionMedia((id ?? "").toString());
       
       return {
         contents: [

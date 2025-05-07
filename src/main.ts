@@ -24,7 +24,7 @@ const pexelsService = new PexelsService();
 server.tool(
   "searchPhotos",
   {
-    query: z.string().describe("The search query (e.g., 'nature', 'people', 'city')"),
+    query: z.string().describe("The search query. Use descriptive keywords for relevant results (e.g., 'Thai hotel reception', 'red sports car driving', not just 'hotel' or 'car'). Combine with parameters like 'orientation', 'size', and 'color' for refined results."),
     orientation: z.enum(["landscape", "portrait", "square"]).optional().describe("Desired photo orientation"),
     size: z.enum(["large", "medium", "small"]).optional().describe("Minimum photo size"),
     color: z.string().optional().describe("Desired photo color (e.g., 'red', 'blue', '#ff0000')"),
@@ -255,7 +255,7 @@ server.tool(
 server.tool(
   "searchVideos", 
   { 
-    query: z.string().describe("The search query (e.g., 'nature', 'people', 'city')"),
+    query: z.string().describe("The search query. Use descriptive keywords for relevant results (e.g., 'drone footage beach sunset', 'time lapse city traffic', not just 'beach' or 'city'). Combine with parameters like 'orientation' and 'size' for refined results."),
     orientation: z.enum(["landscape", "portrait", "square"]).optional().describe("Desired video orientation"),
     size: z.enum(["large", "medium", "small"]).optional().describe("Minimum video size"),
     page: z.number().positive().optional().describe("Page number"),

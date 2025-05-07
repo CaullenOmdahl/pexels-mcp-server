@@ -1,0 +1,542 @@
+import {
+  McpServer,
+  ResourceTemplate,
+} from "@modelcontextprotocol/sdk/server/mcp.js";
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { z } from "zod";
+import { PexelsService } from "./services/pexels-service.js";
+
+// Create an MCP server
+const server = new McpServer({
+  name: "PexelsMCP",
+  version: "1.0.0",
+});
+
+// Initialize Pexels service - API key should be provided via environment variable PEXELS_API_KEY
+const pexelsService = new PexelsService();
+
+// --- Photo API Tools ---
+
+// Tool for searching photos
+server.tool(
+  "searchPhotos", 
+  { 
+    query: z.string().describe("The search query (e.g., 'nature', 'people', 'city')"),
+    orientation: z.enum(["landscape", "portrait", "square"]).optional().describe("Desired photo orientation"),
+    size: z.enum(["large", "medium", "small"]).optional().describe("Minimum photo size"),
+    color: z.string().optional().describe("Desired photo color (e.g., 'red', 'blue', '#ff0000')"),
+    page: z.number().positive().optional().describe("Page number"),
+    perPage: z.number().min(1).max(80).optional().describe("Results per page (max 80)") 
+  }, 
+  async ({ query, orientation, size, color, page, perPage }) => {
+    try {
+      const results = await pexelsService.searchPhotos(query, {
+        orientation,
+        size,
+        color,
+        page,
+        per_page: perPage
+      });
+      
+      return {
+        content: [
+          { 
+            type: "text", 
+            text: `Found ${results.total_results} photos matching "${query}"`
+          },
+          {
+            type: "json",
+            json: results
+          }
+        ]
+      };
+    } catch (error) {
+      return {
+        content: [
+          { 
+            type: "text", 
+            text: `Error searching photos: ${(error as Error).message}`
+          }
+        ]
+      };
+    }
+  }
+);
+
+// Tool for getting curated photos
+server.tool(
+  "getCuratedPhotos", 
+  { 
+    page: z.number().positive().optional().describe("Page number"),
+    perPage: z.number().min(1).max(80).optional().describe("Results per page (max 80)") 
+  }, 
+  async ({ page, perPage }) => {
+    try {
+      const results = await pexelsService.getCuratedPhotos({
+        page,
+        per_page: perPage
+      });
+      
+      return {
+        content: [
+          { 
+            type: "text", 
+            text: `Retrieved ${results.photos.length} curated photos`
+          },
+          {
+            type: "json",
+            json: results
+          }
+        ]
+      };
+    } catch (error) {
+      return {
+        content: [
+          { 
+            type: "text", 
+            text: `Error getting curated photos: ${(error as Error).message}`
+          }
+        ]
+      };
+    }
+  }
+);
+
+// Tool for getting a specific photo by ID
+server.tool(
+  "getPhoto", 
+  { 
+    id: z.number().positive().describe("The ID of the photo to retrieve")
+  }, 
+  async ({ id }) => {
+    try {
+      const photo = await pexelsService.getPhoto(id);
+      
+      return {
+        content: [
+          { 
+            type: "text", 
+            text: `Retrieved photo: ${photo.alt || photo.url}`
+          },
+          {
+            type: "json",
+            json: photo
+          }
+        ]
+      };
+    } catch (error) {
+      return {
+        content: [
+          { 
+            type: "text", 
+            text: `Error getting photo: ${(error as Error).message}`
+          }
+        ]
+      };
+    }
+  }
+);
+
+// --- Video API Tools ---
+
+// Tool for searching videos
+server.tool(
+  "searchVideos", 
+  { 
+    query: z.string().describe("The search query (e.g., 'nature', 'people', 'city')"),
+    orientation: z.enum(["landscape", "portrait", "square"]).optional().describe("Desired video orientation"),
+    size: z.enum(["large", "medium", "small"]).optional().describe("Minimum video size"),
+    page: z.number().positive().optional().describe("Page number"),
+    perPage: z.number().min(1).max(80).optional().describe("Results per page (max 80)") 
+  }, 
+  async ({ query, orientation, size, page, perPage }) => {
+    try {
+      const results = await pexelsService.searchVideos(query, {
+        orientation,
+        size,
+        page,
+        per_page: perPage
+      });
+      
+      return {
+        content: [
+          { 
+            type: "text", 
+            text: `Found ${results.total_results} videos matching "${query}"`
+          },
+          {
+            type: "json",
+            json: results
+          }
+        ]
+      };
+    } catch (error) {
+      return {
+        content: [
+          { 
+            type: "text", 
+            text: `Error searching videos: ${(error as Error).message}`
+          }
+        ]
+      };
+    }
+  }
+);
+
+// Tool for getting popular videos
+server.tool(
+  "getPopularVideos", 
+  { 
+    minWidth: z.number().optional().describe("Minimum video width in pixels"),
+    minHeight: z.number().optional().describe("Minimum video height in pixels"),
+    minDuration: z.number().optional().describe("Minimum video duration in seconds"),
+    maxDuration: z.number().optional().describe("Maximum video duration in seconds"),
+    page: z.number().positive().optional().describe("Page number"),
+    perPage: z.number().min(1).max(80).optional().describe("Results per page (max 80)") 
+  }, 
+  async ({ minWidth, minHeight, minDuration, maxDuration, page, perPage }) => {
+    try {
+      const results = await pexelsService.getPopularVideos({
+        min_width: minWidth,
+        min_height: minHeight,
+        min_duration: minDuration,
+        max_duration: maxDuration,
+        page,
+        per_page: perPage
+      });
+      
+      return {
+        content: [
+          { 
+            type: "text", 
+            text: `Retrieved ${results.videos.length} popular videos`
+          },
+          {
+            type: "json",
+            json: results
+          }
+        ]
+      };
+    } catch (error) {
+      return {
+        content: [
+          { 
+            type: "text", 
+            text: `Error getting popular videos: ${(error as Error).message}`
+          }
+        ]
+      };
+    }
+  }
+);
+
+// Tool for getting a specific video by ID
+server.tool(
+  "getVideo", 
+  { 
+    id: z.number().positive().describe("The ID of the video to retrieve")
+  }, 
+  async ({ id }) => {
+    try {
+      const video = await pexelsService.getVideo(id);
+      
+      return {
+        content: [
+          { 
+            type: "text", 
+            text: `Retrieved video with ID: ${id}`
+          },
+          {
+            type: "json",
+            json: video
+          }
+        ]
+      };
+    } catch (error) {
+      return {
+        content: [
+          { 
+            type: "text", 
+            text: `Error getting video: ${(error as Error).message}`
+          }
+        ]
+      };
+    }
+  }
+);
+
+// --- Collections API Tools ---
+
+// Tool for getting featured collections
+server.tool(
+  "getFeaturedCollections", 
+  { 
+    page: z.number().positive().optional().describe("Page number"),
+    perPage: z.number().min(1).max(80).optional().describe("Results per page (max 80)") 
+  }, 
+  async ({ page, perPage }) => {
+    try {
+      const collections = await pexelsService.getFeaturedCollections({
+        page,
+        per_page: perPage
+      });
+      
+      return {
+        content: [
+          { 
+            type: "text", 
+            text: `Retrieved ${collections.collections.length} featured collections`
+          },
+          {
+            type: "json",
+            json: collections
+          }
+        ]
+      };
+    } catch (error) {
+      return {
+        content: [
+          { 
+            type: "text", 
+            text: `Error getting featured collections: ${(error as Error).message}`
+          }
+        ]
+      };
+    }
+  }
+);
+
+// Tool for getting user's collections
+server.tool(
+  "getMyCollections", 
+  { 
+    page: z.number().positive().optional().describe("Page number"),
+    perPage: z.number().min(1).max(80).optional().describe("Results per page (max 80)") 
+  }, 
+  async ({ page, perPage }) => {
+    try {
+      const collections = await pexelsService.getMyCollections({
+        page,
+        per_page: perPage
+      });
+      
+      return {
+        content: [
+          { 
+            type: "text", 
+            text: `Retrieved ${collections.collections.length} of your collections`
+          },
+          {
+            type: "json",
+            json: collections
+          }
+        ]
+      };
+    } catch (error) {
+      return {
+        content: [
+          { 
+            type: "text", 
+            text: `Error getting your collections: ${(error as Error).message}`
+          }
+        ]
+      };
+    }
+  }
+);
+
+// Tool for getting media from a collection
+server.tool(
+  "getCollectionMedia", 
+  { 
+    id: z.string().describe("The ID of the collection"),
+    type: z.enum(["photos", "videos"]).optional().describe("Filter by media type"),
+    sort: z.enum(["asc", "desc"]).optional().describe("Sort order"),
+    page: z.number().positive().optional().describe("Page number"),
+    perPage: z.number().min(1).max(80).optional().describe("Results per page (max 80)") 
+  }, 
+  async ({ id, type, sort, page, perPage }) => {
+    try {
+      const media = await pexelsService.getCollectionMedia(id, {
+        type,
+        sort,
+        page,
+        per_page: perPage
+      });
+      
+      return {
+        content: [
+          { 
+            type: "text", 
+            text: `Retrieved ${media.media.length} media items from collection ${id}`
+          },
+          {
+            type: "json",
+            json: media
+          }
+        ]
+      };
+    } catch (error) {
+      return {
+        content: [
+          { 
+            type: "text", 
+            text: `Error getting collection media: ${(error as Error).message}`
+          }
+        ]
+      };
+    }
+  }
+);
+
+// --- Photo Resources ---
+
+// Resource for accessing photos by ID
+server.resource(
+  "photo",
+  new ResourceTemplate("pexels-photo://{id}", { list: undefined }),
+  async (uri, { id }) => {
+    try {
+      const photoId = parseInt(id, 10);
+      if (isNaN(photoId)) {
+        return {
+          contents: [
+            {
+              uri: uri.href,
+              text: `Invalid photo ID: ${id}`,
+            },
+          ],
+        };
+      }
+
+      const photo = await pexelsService.getPhoto(photoId);
+      
+      return {
+        contents: [
+          {
+            uri: uri.href,
+            text: JSON.stringify(photo, null, 2),
+          },
+        ],
+      };
+    } catch (error) {
+      return {
+        contents: [
+          {
+            uri: uri.href,
+            text: `Error retrieving photo with ID ${id}: ${(error as Error).message}`,
+          },
+        ],
+      };
+    }
+  }
+);
+
+// --- Video Resources ---
+
+// Resource for accessing videos by ID
+server.resource(
+  "video",
+  new ResourceTemplate("pexels-video://{id}", { list: undefined }),
+  async (uri, { id }) => {
+    try {
+      const videoId = parseInt(id, 10);
+      if (isNaN(videoId)) {
+        return {
+          contents: [
+            {
+              uri: uri.href,
+              text: `Invalid video ID: ${id}`,
+            },
+          ],
+        };
+      }
+
+      const video = await pexelsService.getVideo(videoId);
+      
+      return {
+        contents: [
+          {
+            uri: uri.href,
+            text: JSON.stringify(video, null, 2),
+          },
+        ],
+      };
+    } catch (error) {
+      return {
+        contents: [
+          {
+            uri: uri.href,
+            text: `Error retrieving video with ID ${id}: ${(error as Error).message}`,
+          },
+        ],
+      };
+    }
+  }
+);
+
+// --- Collection Resources ---
+
+// Resource for accessing collections by ID
+server.resource(
+  "collection",
+  new ResourceTemplate("pexels-collection://{id}", { list: undefined }),
+  async (uri, { id }) => {
+    try {
+      const media = await pexelsService.getCollectionMedia(id);
+      
+      return {
+        contents: [
+          {
+            uri: uri.href,
+            text: JSON.stringify(media, null, 2),
+          },
+        ],
+      };
+    } catch (error) {
+      return {
+        contents: [
+          {
+            uri: uri.href,
+            text: `Error retrieving collection with ID ${id}: ${(error as Error).message}`,
+          },
+        ],
+      };
+    }
+  }
+);
+
+// Tool to set API key for clients that need to provide their own key
+server.tool(
+  "setApiKey", 
+  { 
+    apiKey: z.string().describe("Your Pexels API key")
+  }, 
+  async ({ apiKey }) => {
+    try {
+      pexelsService.setApiKey(apiKey);
+      
+      return {
+        content: [
+          { 
+            type: "text", 
+            text: "API key set successfully"
+          }
+        ]
+      };
+    } catch (error) {
+      return {
+        content: [
+          { 
+            type: "text", 
+            text: `Error setting API key: ${(error as Error).message}`
+          }
+        ]
+      };
+    }
+  }
+);
+
+// Start receiving messages on stdin and sending messages on stdout
+const transport = new StdioServerTransport();
+await server.connect(transport);

@@ -1,0 +1,16 @@
+startCommand:
+  type: stdio
+  configSchema:
+    type: object
+    required:
+      - pexelsApiKey
+    properties:
+      pexelsApiKey:
+        type: string
+        description: Pexels API key for authenticating requests
+  commandFunction: |
+    (config) => ({
+      command: "node",
+      args: ["dist/index.js"],
+      env: { PEXELS_API_KEY: config.pexelsApiKey }
+    })

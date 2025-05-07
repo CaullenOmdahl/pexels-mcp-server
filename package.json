@@ -1,0 +1,26 @@
+{
+  "name": "pexels-mcp-server",
+  "version": "1.0.0",
+  "description": "MCP server for handling model context protocol with Pexels API integration",
+  "type": "module",
+  "main": "dist/main.js",
+  "bin": "dist/main.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx watch src/main.ts"
+  },
+  "keywords": ["mcp", "ai", "model-context-protocol", "pexels", "api"],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "0.9.0",
+    "zod": "^3.22.4",
+    "node-fetch": "^2.7.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.7.0",
+    "typescript": "^5.8.0",
+    "@types/node": "^22.0.0",
+    "@types/node-fetch": "^2.6.11"
+  }
+}

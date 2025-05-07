@@ -1,5 +1,7 @@
 # Pexels MCP Server
 
+[![smithery badge](https://smithery.ai/badge/@CaullenOmdahl/pexels-mcp-server)](https://smithery.ai/server/@CaullenOmdahl/pexels-mcp-server)
+
 A Model Context Protocol (MCP) server that provides access to the Pexels API, allowing AI models to search for and retrieve photos, videos, and collections from Pexels.
 
 ## Features

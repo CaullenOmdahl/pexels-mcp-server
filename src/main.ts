@@ -62,9 +62,10 @@ server.tool(
 
       // Add rate limit info if available
       if (rateLimit) {
+        const resetDate = rateLimit.reset ? new Date(rateLimit.reset * 1000).toISOString() : 'N/A';
         content.push({
           type: "text",
-          text: `\nRate Limit: ${rateLimit.remaining}/${rateLimit.limit} requests remaining this period. Resets at ${new Date(rateLimit.reset * 1000).toISOString()}.`
+          text: `\nRate Limit: ${rateLimit.remaining ?? 'N/A'}/${rateLimit.limit ?? 'N/A'} requests remaining this period. Resets at ${resetDate}.`
         });
       }
 

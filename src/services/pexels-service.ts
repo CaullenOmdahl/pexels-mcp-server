@@ -164,7 +164,7 @@ export class PexelsService {
 
     // Determine the base URL based on the endpoint
     const isVideoEndpoint = endpoint.startsWith('/videos');
-    const url = `${this.baseUrl}${isVideoEndpoint ? '/videos' : '/v1'}${endpoint}${
+    const url = `${this.baseUrl}${isVideoEndpoint ? '' : '/v1'}${endpoint}${
       queryParams.toString() ? '?' + queryParams.toString() : ''
     }`;
 
